@@ -1,0 +1,9 @@
+Q1: FoundationDB separates the TMS and SS because each one does a very different job. The TMS handles transactions, meaning it decides the order of operations and checks for conflicts between them. The SS is in charge of actually storing the data on disk. By keeping them separate, each part can recover or scale independently without affecting the other.
+
+Q2: The Resolver is the component that checks for conflicts. When a transaction wants to commit, the Proxy sends the transaction's read set and write set to the Resolver. The Resolver then checks if any key that was read has been modified by another transaction that committed after the read version. This check happens before the transaction is allowed to commit.
+
+Q3: The read version works like a timestamp that tells the transaction which version of the data it is allowed to see. When a transaction starts, it gets a read version and can only read data that was committed before that point. This gives FDB a consistent snapshot of the database, so all reads inside a transaction see the same state of the data.
+
+Q4: Snapshot reads let a transaction read data without adding those keys to the conflict detection set. This means the transaction will not be aborted even if another transaction modifies those keys. Standard reads do add keys to the conflict set, so they can cause aborts. Snapshot reads are useful when you want to read data without caring if it changes, for example in long read-only queries where performance matters more than strict consistency.
+
+Q5: FDB recovery is fast because StorageServers already have all committed data stored on disk during normal operation. When a failure happens, the system does not need to replay a long log to recover the data. Instead, it only needs to find the last safe commit version and make sure all StorageServers are up to date from that point. LogServers help by keeping recent mutations available so the StorageServers can quickly catch up if needed.
